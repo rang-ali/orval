@@ -72,23 +72,34 @@ const possibleSchemaTypes = new Set([
 
 const resolveZodType = (schema: SchemaObject | SchemaObject31) => {
   const schemaTypeValue = schema.type;
-  const type = Array.isArray(schemaTypeValue)
-    ? schemaTypeValue.find((t) => possibleSchemaTypes.has(t))
-    : schemaTypeValue;
-
-  // TODO: if "prefixItems" exists and type is "array", then generate a "tuple"
+  
+  // Handle array of types (union types)
+  if (Array.isArray(schemaTypeValue)) {
+    const validTypes = schemaTypeValue.filter((t) => possibleSchemaTypes.has(t));
+    
+    // If multiple valid types, return a special indicator for union handling
+    if (validTypes.length > 1) {
+      return 'union'; // or handle union types directly here
+    }
+    
+    // Single type in array
+    const type = validTypes[0];
+    // TODO: handle prefixItems for tuples
+    if (schema.type === 'array' && 'prefixItems' in schema) {
+      return 'tuple';
+    }
+    
+    return type === 'integer' ? 'number' : type ?? 'any';
+  }
+  
+  // Handle single type
+  const type = schemaTypeValue;
+  
   if (schema.type === 'array' && 'prefixItems' in schema) {
     return 'tuple';
   }
 
-  switch (type) {
-    case 'integer': {
-      return 'number';
-    }
-    default: {
-      return type ?? 'any';
-    }
-  }
+  return type === 'integer' ? 'number' : type ?? 'any';
 };
 
 const constsUniqueCounter: Record<string, number> = {};
